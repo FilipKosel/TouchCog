@@ -1,0 +1,11 @@
+This is a spatial memory task.
+
+For each trial, you will be shown one white circle, 
+followed by a short video clip.
+
+After the video clip, you will be shown to white 
+circles. One of these will be in a new location.
+
+Your task is to select the circle in the new location.
+
+Press "Start" below for a tutorial.
