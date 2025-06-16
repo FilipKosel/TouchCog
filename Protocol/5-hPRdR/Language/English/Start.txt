@@ -1,0 +1,13 @@
+In this task, tap the white square at the bottom 
+of the screen to start a trial, then tap the white 
+circle.
+
+You will receive feedback when you finish a block.
+
+The task will end if you do not make any response 
+within 15 seconds.
+
+You can press the "END TASK" button at any time 
+to end the task.
+
+Tap "Start" below to begin.
