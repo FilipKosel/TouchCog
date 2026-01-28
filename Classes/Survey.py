@@ -164,12 +164,12 @@ class SurveyBase(Screen):
         self.survey_description = "This is a survey."
         self.end_survey_button_text = "Continue"
         self.end_survey_text = "Thank you for completing the survey!"
-        self.survey_title_label = Label(text=self.survey_title, font_size='32sp', halign='center', valign='middle')
-        self.survey_title_description = Label(text=self.survey_description, font_size='24sp', halign='center', valign='middle')
+        self.survey_title_label = Label(text=self.survey_title, font_size='35sp', halign='center', valign='middle')
+        self.survey_title_description = Label(text=self.survey_description, font_size='30sp', halign='center', valign='middle')
         self.survey_button_text = "Next"
-        self.survey_button = Button(text=self.survey_button_text, size_hint=(0.3, 0.2), pos_hint={'center_x': 0.5}, font_size='24sp')
+        self.survey_button = Button(text=self.survey_button_text, size_hint=(0.3, 0.2), pos_hint={'center_x': 0.5}, font_size='30sp')
 
-        self.participant_id_entry = TextInput(hint_text="Participant ID", multiline=False, size_hint=(0.6, None), height=40, pos_hint={'center_x': 0.5}, font_size='24sp')
+        self.participant_id_entry = TextInput(hint_text="Participant ID", multiline=False, size_hint=(0.6, None), height=75, pos_hint={'center_x': 0.5}, font_size='30sp')
         self.participant_id = 'Default'
 
         self.survey_data = pd.DataFrame(columns=['question', 'response'])
@@ -266,7 +266,7 @@ class SurveyBase(Screen):
     def _load_end_survey_text(self):
         self.end_survey_text = "Thank you for completing the survey!"
         self.end_survey_label = Label(text=self.end_survey_text, font_size='32sp', halign='center', valign='middle')
-        self.end_survey_button = Button(text="Continue", size_hint=(0.5, 0.2), pos_hint={'center_x': 0.5}, font_size='24sp')
+        self.end_survey_button = Button(text="Continue", size_hint=(0.5, 0.2), pos_hint={'center_x': 0.5}, font_size='30sp')
 
     def _return_to_main_menu(self, instance):
         self.app.survey_data = pd.DataFrame(self.app.survey_data_list, columns=['question', 'response'])
@@ -292,8 +292,9 @@ class SurveyBase(Screen):
         Create a multiple choice question with given text and options.
         Handles "Other" option with text entry.
         """
-        question_label = Label(text=question_text, size_hint_y=None, height=60, font_size='32sp', halign='left', valign='top', text_size=(None, None))
-        question_label.bind(texture_size=question_label.setter('size'))
+        question_label = Label(text=question_text, size_hint_y=None, font_size='32sp', halign='center', valign='top')
+        question_label.bind(width=lambda *x: question_label.setter('text_size')(question_label, (question_label.width, None)))
+        question_label.bind(texture_size=lambda *x: question_label.setter('height')(question_label, question_label.texture_size[1]))
         question_scroll = ScrollView(size_hint_y=0.3, scroll_y=1, effect_cls=ScrollEffect)
         question_scroll.add_widget(question_label)
         layout.add_widget(question_scroll)
@@ -338,7 +339,7 @@ class SurveyBase(Screen):
         scroll_view.add_widget(options_container)
         layout.add_widget(scroll_view)
 
-        survey_continue_button = Button(text="Next", size_hint_y=None, height=50)
+        survey_continue_button = Button(text="Next", size_hint_y=None, height=100, font_size='30sp')
         # custom handler: find the ToggleButton in the options_container that is down
         def _on_next(instance, qtext=question_text, _container=options_container, _other_input=other_text_input):
             selected_text = ""
@@ -377,8 +378,9 @@ class SurveyBase(Screen):
         """
         Create a text input question with given text.
         """
-        question_label = Label(text=question_text, size_hint_y=None, height=60, font_size='32sp', halign='left', valign='top', text_size=(None, None))
-        question_label.bind(texture_size=question_label.setter('size'))
+        question_label = Label(text=question_text, size_hint_y=None, font_size='32sp', halign='center', valign='top')
+        question_label.bind(width=lambda *x: question_label.setter('text_size')(question_label, (question_label.width, None)))
+        question_label.bind(texture_size=lambda *x: question_label.setter('height')(question_label, question_label.texture_size[1]))
         question_scroll = ScrollView(size_hint_y=0.3, scroll_y=1, effect_cls=ScrollEffect)
         question_scroll.add_widget(question_label)
         layout.add_widget(question_scroll)
@@ -388,10 +390,10 @@ class SurveyBase(Screen):
         layout.add_widget(spacer)
 
         from kivy.uix.textinput import TextInput
-        text_input = TextInput(multiline=False, size_hint_y=None, height=50, font_size='24sp')
+        text_input = TextInput(multiline=False, size_hint_y=None, height=75, font_size='30sp')
         layout.add_widget(text_input)
 
-        survey_continue_button = Button(text="Next", size_hint_y=None, height=50, font_size='24sp')
+        survey_continue_button = Button(text="Next", size_hint_y=None, height=100, font_size='30sp')
         # custom handler: record the text value
         def _on_next_text(instance, qtext=question_text, _input=text_input):
             response = _input.text if _input is not None else ""
@@ -407,8 +409,9 @@ class SurveyBase(Screen):
         Create a multi-response question with checkboxes for given text and options.
         Handles "Other" option with text entry instead of label.
         """
-        question_label = Label(text=question_text, size_hint_y=None, height=60, font_size='32sp', halign='left', valign='top', text_size=(None, None))
-        question_label.bind(texture_size=question_label.setter('size'))
+        question_label = Label(text=question_text, size_hint_y=None, font_size='32sp', halign='center', valign='top')
+        question_label.bind(width=lambda *x: question_label.setter('text_size')(question_label, (question_label.width, None)))
+        question_label.bind(texture_size=lambda *x: question_label.setter('height')(question_label, question_label.texture_size[1]))
         question_scroll = ScrollView(size_hint_y=0.3, scroll_y=1, effect_cls=ScrollEffect)
         question_scroll.add_widget(question_label)
         layout.add_widget(question_scroll)
@@ -421,25 +424,25 @@ class SurveyBase(Screen):
         for option in options:
             if option.lower() == "other":
                 # For "Other", replace label with text entry
-                option_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=5)
-                option_checkbox = CheckBox(size_hint_x=None, width=50)
+                option_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=75, spacing=5)
+                option_checkbox = CheckBox(size_hint_x=None, width=75, height=75)
                 option_row.add_widget(option_checkbox)
                 # Use the "Other" label as hint text in the entry field
-                other_text_input = TextInput(multiline=False, hint_text=option, size_hint_x=1.0, font_size='24sp')
+                other_text_input = TextInput(multiline=False, hint_text=option, size_hint_x=1.0, font_size='30sp')
                 option_row.add_widget(other_text_input)
                 options_container.add_widget(option_row)
             else:
-                option_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=50)
-                option_checkbox = CheckBox(size_hint_x=None, width=50)
+                option_row = BoxLayout(orientation='horizontal', size_hint_y=None, height=75)
+                option_checkbox = CheckBox(size_hint_x=None, width=75, height=75)
                 option_row.add_widget(option_checkbox)
-                option_label = Label(text=option, halign='left',font_size='24sp')
+                option_label = Label(text=option, halign='center',font_size='30sp')
                 option_row.add_widget(option_label)
                 options_container.add_widget(option_row)
 
         scroll_view.add_widget(options_container)
         layout.add_widget(scroll_view)
         
-        survey_continue_button = Button(text="Next", size_hint_y=None, height=50, font_size='24sp')
+        survey_continue_button = Button(text="Next", size_hint_y=None, height=100, font_size='30sp')
         # custom handler: iterate through rows and collect checked labels / text inputs
         def _on_next_multi(instance, qtext=question_text, _container=options_container):
             selected = []
@@ -478,8 +481,9 @@ class SurveyBase(Screen):
         Create a Likert scale question with a draggable horizontal indicator.
         Options can be either a dict {key: label, ...} or a tuple (min, max).
         """
-        question_label = Label(text=question_text, size_hint_y=None, height=60, font_size='32sp', halign='left', valign='top', text_size=(None, None))
-        question_label.bind(texture_size=question_label.setter('size'))
+        question_label = Label(text=question_text, size_hint_y=None, font_size='32sp', halign='center', valign='top')
+        question_label.bind(width=lambda *x: question_label.setter('text_size')(question_label, (question_label.width, None)))
+        question_label.bind(texture_size=lambda *x: question_label.setter('height')(question_label, question_label.texture_size[1]))
         question_scroll = ScrollView(size_hint_y=0.3, scroll_y=1, effect_cls=ScrollEffect)
         question_scroll.add_widget(question_label)
         layout.add_widget(question_scroll)
@@ -521,7 +525,7 @@ class SurveyBase(Screen):
 
         layout.add_widget(scale_container)
 
-        survey_continue_button = Button(text="Next", size_hint_y=None, height=50, font_size='24sp')
+        survey_continue_button = Button(text="Next", size_hint_y=None, height=100, font_size='30sp')
         # custom handler: read likert_scale value (label for dicts, numeric for ranges)
         def _on_next_scale(instance, qtext=question_text, _scale=likert_scale):
             try:
