@@ -192,11 +192,11 @@ class ProtocolScreen(ProtocolBase):
 		self.trial_reward_list = list()
 		self.trial_reward_list_index = -1
 
-		for iTrial in range(int(self.target_reward_probability * 60)):
+		for iTrial in range(int(self.target_reward_probability * self.block_trial_max)):
 			self.trial_reward_list.append('Target')
 		
 
-		for iTrial in range(int(self.nontarget_reward_probability * 60)):
+		for iTrial in range(int(self.nontarget_reward_probability * self.block_trial_max)):
 			self.trial_reward_list.append('NonTarget')
 		
 		self.trial_reward_list = self.constrained_shuffle(self.trial_reward_list, max_run=5)
@@ -297,9 +297,9 @@ class ProtocolScreen(ProtocolBase):
 		self.feedback_dict['points_awarded'] = points_awarded_feedback_string
 
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
-			self.tutorial_video_path = str(list((self.lang_folder_path / 'Tutorial_Video').glob('*.mp4'))[0])
+			self.tutorial_video_path = self.lang_folder_path / 'Tutorial_Video' / 'PRL-Tutorial_Video-2025-09-18.mp4'
 			self.tutorial_video = PreloadedVideo(
-				source_path = self.tutorial_video_path
+				source_path = str(self.tutorial_video_path)
 				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
 				, fit_mode = 'contain',
 				loop=False
@@ -339,7 +339,7 @@ class ProtocolScreen(ProtocolBase):
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
 
 			self.protocol_floatlayout.clear_widgets()
-			self.present_tutorial_video()
+			self.trigger_tutorial_screen()
 		
 		else:
 			self.present_instructions()
@@ -791,11 +791,13 @@ class ProtocolScreen(ProtocolBase):
 
 				self.instruction_button.text = self.begin_section_button_str
 
-				self.protocol_floatlayout.add_widget(self.instruction_label)
-				self.protocol_floatlayout.add_widget(self.instruction_button)
+				#self.protocol_floatlayout.add_widget(self.instruction_label)
+				#self.protocol_floatlayout.add_widget(self.instruction_button)
 				
 				self.protocol_floatlayout.add_object_event('Display', 'Text', 'Block', 'Instructions', 'Task')
 				self.protocol_floatlayout.add_object_event('Display', 'Button', 'Block', 'Instructions', 'Continue')
+
+				self.section_start()
 			
 			else:
 				self.block_started = False

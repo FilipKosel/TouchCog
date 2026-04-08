@@ -282,9 +282,9 @@ class ProtocolScreen(ProtocolBase):
 		self.lang_folder_path = self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language
 
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
-			self.tutorial_video_path = str(list((self.lang_folder_path / 'Tutorial_Video').glob('*.mp4'))[0])
+			self.tutorial_video_path = self.lang_folder_path / 'Tutorial_Video' / 'PR-Tutorial_Video-2025-11-19.mp4'
 			self.tutorial_video = PreloadedVideo(
-				source_path = self.tutorial_video_path
+				source_path = str(self.tutorial_video_path)
 				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
 				, fit_mode = 'contain',
 				loop=False
@@ -314,7 +314,7 @@ class ProtocolScreen(ProtocolBase):
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
 
 			self.protocol_floatlayout.clear_widgets()
-			self.present_tutorial_video()
+			self.trigger_tutorial_screen()
 		
 		else:
 			self.present_instructions()
@@ -375,6 +375,7 @@ class ProtocolScreen(ProtocolBase):
 		self.generate_output_files()
 		self.metadata_output_generation()
 
+		self.no_response_event = self.task_clock.schedule_once(self.protocol_end, self.timeout_duration)
 		self.block_contingency()
 
 

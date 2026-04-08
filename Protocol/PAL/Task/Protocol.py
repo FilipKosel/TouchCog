@@ -89,7 +89,7 @@ class ProtocolScreen(ProtocolBase):
 			self.parameters_dict = self.config_file['TaskParameters']
 			self.debug_mode = False
 
-		self.image_set_dspal_list = [{'name': 'set1','images': ['blocks', 'cookie', 'nineties']},
+		self.image_set_dspal_list = [{'name': 'set1','images': ['zigzags', 'shapes', 'ghost']},
 								{'name': 'set2','images': ['camera', 'ghost', 'ovals']},
 								{'name': 'set3','images': ['lines', 'shapes', 'zigzags']},]
 
@@ -135,12 +135,12 @@ class ProtocolScreen(ProtocolBase):
 
 		self.training_image = self.parameters_dict.get('training_image', 'snowflake')
 
-		self.image_set_dspal = self.parameters_dict.get('dspal_image_set', 'rand')
+		self.image_set_dspal = self.parameters_dict.get('dspal_image_set', 'set1')
 		if self.image_set_dspal == None:
-			self.image_set_dspal = 'rand'
-		self.image_set_recall = self.parameters_dict.get('recall_image_set', 'rand')
+			self.image_set_dspal = 'set1'
+		self.image_set_recall = self.parameters_dict.get('recall_image_set', 'set1')
 		if self.image_set_recall == None:
-			self.image_set_recall = 'rand'
+			self.image_set_recall = 'set1'
 
 		self.hold_image = self.config_file['Hold']['hold_image']
 		self.mask_image = self.config_file['Mask']['mask_image']
@@ -191,8 +191,10 @@ class ProtocolScreen(ProtocolBase):
 
 		self.response_tracking = list()
 
+		self.spal_video_presented = False
 		self.recall_video_presented = False
 		self.recall_instruction_target_display_started = False
+		self.recall_full_preview_started = False
 
 		self.target_loc = 0
 		self.nontarget_loc = 1
@@ -396,11 +398,12 @@ class ProtocolScreen(ProtocolBase):
 		self.lang_folder_path = self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language
 
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
-			self.tutorial_video_PAL_path = str(list((self.lang_folder_path / 'Tutorial_Video').glob('*Part 1*'))[0])
-			self.tutorial_video_PA_path = str(list((self.lang_folder_path / 'Tutorial_Video').glob('*Part 2*'))[0])
+			self.tutorial_video_dPAL_path = self.lang_folder_path / 'Tutorial_Video' /'PAL-dPAL-2025-09-22.mp4'
+			self.tutorial_video_sPAL_path = self.lang_folder_path / 'Tutorial_Video' / 'PAL-sPAL-2025-09-22.mp4'
+			self.tutorial_video_PA_path = self.lang_folder_path / 'Tutorial_Video' / 'PAL-Recall-2025-11-19.mp4'
 
 			self.tutorial_video = PreloadedVideo(
-				source_path = self.tutorial_video_PAL_path
+				source_path = str(self.tutorial_video_dPAL_path)
 				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
 				, fit_mode = 'contain'
 				, loop=False
@@ -447,7 +450,7 @@ class ProtocolScreen(ProtocolBase):
 		self.protocol_floatlayout.add_widget(self.recall_stimulus)
 		
 		self.start_clock()
-		self.present_tutorial_video()
+		self.trigger_tutorial_screen()
 	
 
 
@@ -599,17 +602,31 @@ class ProtocolScreen(ProtocolBase):
 			self.present_recall_stimuli(0)
 
 	def present_recall_stimuli(self, *args):
-		if self.recall_img_index >= self.num_stimuli:
+		if (self.recall_img_index >= self.num_stimuli) and self.recall_full_preview_started:
 			self.end_recall_screen()
 			return
+		elif (self.recall_img_index >= self.num_stimuli) and not self.recall_full_preview_started:
+			# Show all images together for recall preview
+			for iLoc in list(range(0, self.num_stimuli)):
+				self.stimulus_grid_list[iLoc].texture = self.image_dict[self.target_image_list[iLoc]].image.texture
+				self.protocol_floatlayout.add_object_event('Display', 'Stimulus', 'Recall Target', iLoc)
+			self.recall_full_preview_started = True
+			Clock.schedule_once(self.remove_recall_stimuli, self.recall_target_present_duration)
+			return
+
 		else:
 			self.stimulus_grid_list[self.recall_img_index].texture = self.image_dict[self.target_image_list[self.recall_img_index]].image.texture
 			self.protocol_floatlayout.add_object_event('Display', 'Stimulus', 'Recall Target', self.recall_img_index)
 			Clock.schedule_once(self.remove_recall_stimuli, self.recall_target_present_duration)
 
 	def remove_recall_stimuli(self, *args):
-		self.stimulus_grid_list[self.recall_img_index].texture = self.image_dict[self.outline_image].image.texture
-		self.protocol_floatlayout.add_object_event('Remove', 'Stimulus', 'Recall Target', self.recall_img_index)
+		if self.recall_full_preview_started:
+			for iLoc in list(range(0, self.num_stimuli)):
+					self.stimulus_grid_list[iLoc].texture = self.image_dict[self.outline_image].image.texture
+					self.protocol_floatlayout.add_object_event('Remove', 'Stimulus', 'Recall Target', iLoc)
+		else:
+			self.stimulus_grid_list[self.recall_img_index].texture = self.image_dict[self.outline_image].image.texture
+			self.protocol_floatlayout.add_object_event('Remove', 'Stimulus', 'Recall Target', self.recall_img_index)
 		self.recall_img_index += 1
 		self.present_recall_stimuli()
 
@@ -1020,26 +1037,44 @@ class ProtocolScreen(ProtocolBase):
 				self.protocol_end()
 				return
 			elif (self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language / 'Tutorial_Video').is_dir() \
+					and (self.stage_list[self.stage_index] == 'sPAL') \
+					and (not self.spal_video_presented):
+				self.protocol_floatlayout.clear_widgets()
+				self.current_stage = self.stage_list[self.stage_index]
+				self.stage_index -= 1
+				self.current_block = 1
+				self.spal_video_presented = True
+				self.tutorial_video.state = 'stop'
+				self.tutorial_video.unload()
+				self.tutorial_video = None
+				self.tutorial_video = PreloadedVideo(
+				source_path = str(self.tutorial_video_sPAL_path)
+				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
+				, fit_mode = 'contain'
+				, loop=False
+				)
+		
+				self.trigger_tutorial_screen()
+				return
+			elif (self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language / 'Tutorial_Video').is_dir() \
 					and (self.stage_list[self.stage_index] == 'Recall') \
 					and (not self.recall_video_presented):
 				self.protocol_floatlayout.clear_widgets()
 				self.current_stage = self.stage_list[self.stage_index]
 				self.stage_index -= 1
 				self.current_block = 1
-				# self.tutorial_start_button.unbind(on_press=self.start_protocol_from_tutorial)
-				# self.tutorial_start_button.bind(on_press=self.block_contingency)
 				self.recall_video_presented = True
 				self.tutorial_video.state = 'stop'
 				self.tutorial_video.unload()
 				self.tutorial_video = None
 				self.tutorial_video = PreloadedVideo(
-				source_path = self.tutorial_video_PA_path
+				source_path = str(self.tutorial_video_PA_path)
 				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
 				, fit_mode = 'contain'
 				, loop=False
 				)
 		
-				self.present_tutorial_video()
+				self.trigger_tutorial_screen()
 				return
 			else:
 				self.current_stage = self.stage_list[self.stage_index]
@@ -1116,13 +1151,15 @@ class ProtocolScreen(ProtocolBase):
 					self.instruction_button.bind(on_press=self.start_recall_target_screen)
 					self.instruction_button.text = self.image_recall_button_str
 					
-				self.protocol_floatlayout.add_widget(self.section_instr_label)
-				self.protocol_floatlayout.add_widget(self.instruction_button)
+					self.protocol_floatlayout.add_widget(self.section_instr_label)
+					self.protocol_floatlayout.add_widget(self.instruction_button)
 					
-				self.protocol_floatlayout.add_object_event('Display', 'Text', 'Block', 'Instructions')
-				self.protocol_floatlayout.add_object_event('Display', 'Button', 'Block', 'Instructions - Continue')
+					self.protocol_floatlayout.add_object_event('Display', 'Text', 'Block', 'Instructions')
+					self.protocol_floatlayout.add_object_event('Display', 'Button', 'Block', 'Instructions - Continue')
 
 			self.trial_contingency()
+			if self.current_stage != 'Recall':
+				self.section_start()
 		
 		except KeyboardInterrupt:
 			print('Program terminated by user.')

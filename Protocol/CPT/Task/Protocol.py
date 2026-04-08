@@ -7,19 +7,13 @@ import pathlib
 import random
 import statistics
 import time
-from collections import Counter
 
 from Classes.Protocol import ImageButton, ProtocolBase, PreloadedVideo
 
 from kivy.clock import Clock
-from kivy.config import Config
 from kivy.uix.button import Button
-from kivy.uix.effectwidget import EffectWidget, HorizontalBlurEffect, VerticalBlurEffect
-from kivy.uix.image import Image
 from kivy.uix.label import Label
-from kivy.uix.video import Video
-
-
+from kivy.uix.effectwidget import EffectWidget, HorizontalBlurEffect, VerticalBlurEffect
 
 
 class ProtocolScreen(ProtocolBase):
@@ -172,10 +166,6 @@ class ProtocolScreen(ProtocolBase):
 
 		self.stimdur_frame_min = float(parameters_dict.get('stimdur_min_frames', '2'))
 		self.stimdur_seconds_max = float(parameters_dict.get('stimdur_max_seconds', '2.00'))
-
-		self.image_set = parameters_dict.get('image_set', 'rand')
-		if self.image_set == None:
-			self.image_set = 'rand'
 		
 		self.hold_image = self.config_file['Hold']['hold_image']
 		self.mask_image = self.config_file['Mask']['mask_image']
@@ -198,20 +188,6 @@ class ProtocolScreen(ProtocolBase):
 		else:
 			self.stimulus_family = parameters_dict.get('stimulus_family', 'Blues')
 
-		# if parameters_dict['noise_difficulty'] \
-		# 	and 'Similarity_Staircase_Difficulty' not in self.stage_list:
-		# 	self.stage_list.append('Noise_Staircase_Difficulty')
-
-		# if parameters_dict['blur_difficulty'] \
-		# 	and 'Similarity_Staircase_Difficulty' not in self.stage_list:
-		# 	self.stage_list.append('Blur_Staircase_Difficulty')
-
-		# if parameters_dict['noise_probe']:
-		# 	self.stage_list.append('Noise_Staircase_Probe')
-
-		# if parameters_dict['blur_probe']:
-		# 	self.stage_list.append('Blur_Staircase_Probe')
-
 		if parameters_dict.get('stimdur_probe', 'True'):
 			self.stage_list.append('StimDur_Staircase_Probe')
 
@@ -223,6 +199,12 @@ class ProtocolScreen(ProtocolBase):
 
 		if parameters_dict.get('sart_probe', 'False'):
 			self.stage_list.append('SART_Fixed_Probe')
+
+		self.image_set = parameters_dict.get('image_set', 'rand')
+		if self.image_set == None and 'Similarity_Staircase_Difficulty' not in self.stage_list:
+			self.image_set = 'set1'
+		else:
+			self.image_set = 'Fb2_1132'
 	
 	def _load_task_variables(self):
 		# Set images
@@ -249,6 +231,12 @@ class ProtocolScreen(ProtocolBase):
 		self.training_complete = False
 		self.premature_override = True
 		self.stage_screen_started = False
+		self.stimdur_video_played = False
+		self.sim_scale_video_played = False
+		self.tar_prob_video_played = False
+		self.data_file_generated = False
+
+
 		
 		# Define Variables - Count
 		
@@ -650,10 +638,13 @@ class ProtocolScreen(ProtocolBase):
 
 
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
-			self.tutorial_video_path = str(list((self.lang_folder_path / 'Tutorial_Video').glob('*.mp4'))[0])
+			self.tutorial_video_path = self.lang_folder_path / 'Tutorial_Video' / 'CPT-Tutorial_Video-2025-09-22.mp4'
+			self.sim_scale_video_path = self.lang_folder_path / 'Tutorial_Video' / 'CPT-General-2025-09-18.mp4'
+			self.stimdur_video_path = self.lang_folder_path / 'Tutorial_Video' / 'CPT-StimDur-2025-09-18.mp4'
+			self.tar_prob_video_path = self.lang_folder_path / 'Tutorial_Video' / 'CPT-General-2025-09-18.mp4'
 
 			self.tutorial_video = PreloadedVideo(
-				source_path = self.tutorial_video_path
+				source_path = str(self.tutorial_video_path)
 				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
 				, fit_mode = 'contain',
 				loop=False
@@ -711,7 +702,7 @@ class ProtocolScreen(ProtocolBase):
 		self.tutorial_outline = ImageButton(source=str(self.outline_mask_path))
 		self.tutorial_checkmark = ImageButton(source=str(self.image_folder / 'checkmark.png'))
 		self.tutorial_continue_button.bind(on_press=self.tutorial_target_present_screen)
-		self.tutorial_start_button.bind(on_press=self.start_protocol_from_tutorial)
+		self.tutorial_start_button.bind(on_press=self.section_start)
 		
 		
 		self.tutorial_stimulus_image.size_hint = self.stimulus_image_size
@@ -773,14 +764,16 @@ class ProtocolScreen(ProtocolBase):
 		self._setup_image_widgets()
 		self._load_video_and_instruction_components()
 		self._setup_language_localization()
+		self.generate_output_files()
+		self.metadata_output_generation()
 
-		self.start_button.bind(on_press=self.start_protocol_from_tutorial)
+		#self.start_button.bind(on_press=self.start_protocol_from_tutorial)
 
 		self.start_clock()
 		if (self.lang_folder_path / 'Tutorial_Video').is_dir():
 
 			self.protocol_floatlayout.clear_widgets()
-			self.present_tutorial_video()
+			self.trigger_tutorial_screen()
 		
 		else:
 			self.present_tutorial_text()
@@ -830,8 +823,10 @@ class ProtocolScreen(ProtocolBase):
 
 		self.protocol_floatlayout.clear_widgets()
 
-		self.generate_output_files()
-		self.metadata_output_generation()
+		if not self.data_file_generated:
+			self.generate_output_files()
+			self.metadata_output_generation()
+			self.data_file_generated = True
 
 		self.block_contingency()
 		return
@@ -1013,6 +1008,8 @@ class ProtocolScreen(ProtocolBase):
 		Clock.unschedule(self.remove_feedback)
 		self.remove_feedback()
 		self.hold_button_pressed = True
+		self.hold_button.unbind(on_press=self.premature_resolved)
+		self.hold_button.bind(on_press=self.iti_start)
 		self.hold_button.bind(on_release=self.premature_response)
 		self.iti_start()
 		return
@@ -1342,6 +1339,7 @@ class ProtocolScreen(ProtocolBase):
 	def section_start(self, *args):
 
 		self.block_started = False
+		self.video_on_screen = False
 
 		self.protocol_floatlayout.clear_widgets()
 
@@ -1352,6 +1350,7 @@ class ProtocolScreen(ProtocolBase):
 		self.protocol_floatlayout.add_object_event('Remove', 'Button', 'Continue', 'Section')
 		
 		self.trial_end_time = time.perf_counter()
+		self.block_contingency()
 		self.block_end()
 
 
@@ -1417,30 +1416,6 @@ class ProtocolScreen(ProtocolBase):
 					# If not miss, false alarm, or correct rejection, encoded as 0
 					else:
 						self.last_response = 0
-				
-				# # Check if stage is blur scaling, noise scaling, blur probe, or noise probe
-				# elif self.current_stage in ['Blur_Staircase_Difficulty', 'Noise_Staircase_Difficulty', 'Blur_Staircase_Probe', 'Noise_Staircase_Probe']:
-				# 	# Encode last_response as 1 if trial outcome is a hit
-				# 	if self.trial_outcome == 1:
-				# 		self.last_response = 1
-				# 	# Encode last_response as -1 if trial outcome is a miss or false alarm
-				# 	elif self.trial_outcome in [2, 3]:
-				# 		self.last_response = -1
-				# 	# If not miss, false alarm, or hit, encoded as 0
-				# 	else:
-				# 		self.last_response = 0
-				
-				# # Check if stage is limited duration scaling
-				# elif self.current_stage == 'LimHold_Staircase_Difficulty':
-				# 	# Encode last_response as 1 if trial outcome is a hit
-				# 	if self.trial_outcome == 1:
-				# 		self.last_response = 1
-				# 	# Encode last_response as -1 if trial outcome is a miss, false alarm, hit no center, false alarm no center
-				# 	elif self.trial_outcome in [2, 3, 5, 6]:
-				# 		self.last_response = -1
-				# 	# Encode correct rejection as 0
-				# 	else:
-				# 		self.last_response = 0
 				
 				# Check if stage is stimulus duration probe
 				elif self.current_stage == 'StimDur_Staircase_Probe': # Counts if hit or lift for a hit. Negative if miss or FA with or without press.
@@ -1855,10 +1830,15 @@ class ProtocolScreen(ProtocolBase):
 
 					if 'Similarity_Staircase_Difficulty' in self.stage_list:
 
-						self.current_similarity = float(self.similarity_data.loc[
-								self.similarity_data['Nontarget'] == self.center_image
-								, self.target_image
-								].to_numpy())
+						match = self.similarity_data[
+							self.similarity_data['Nontarget'].str.strip().str.lower() == self.center_image.lower()][self.target_image]
+
+						if not match.empty:
+							self.current_similarity = float(match.iloc[0])
+						else:
+							# Handle the error gracefully or set a default
+							self.current_similarity = 0.0 
+							print(f"Warning: No similarity data found for {self.center_image}")
 
 				self.img_stimulus_C.texture = self.image_dict[self.center_image].image.texture
 
@@ -2068,6 +2048,7 @@ class ProtocolScreen(ProtocolBase):
 		self.protocol_floatlayout.add_widget(self.stage_continue_button)
 		self.hold_button.bind(on_press=self.iti_start)
 		self.hold_button.bind(on_release=self.premature_response)
+		self.stage_screen_started = False
 		
 		self.protocol_floatlayout.add_object_event('Display', 'Button', 'Stage', 'Continue')
 	
@@ -2131,6 +2112,78 @@ class ProtocolScreen(ProtocolBase):
 			
 				self.protocol_floatlayout.add_stage_event('Protocol End')
 				self.protocol_end()
+
+			if (self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language / 'Tutorial_Video').is_dir() \
+					and (self.stage_list[self.stage_index] == 'Similarity_Staircase_Difficulty') \
+					and (not self.sim_scale_video_played):
+				self.protocol_floatlayout.clear_widgets()
+				self.current_stage = self.stage_list[self.stage_index]
+				self.stage_index -= 1
+				self.current_block = -1
+				self.sim_scale_video_played = True
+				self.tutorial_video.state = 'stop'
+				self.tutorial_video.unload()
+				self.tutorial_video = None
+				self.tutorial_video = PreloadedVideo(
+				source_path = str(self.sim_scale_video_path)
+				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
+				, fit_mode = 'contain'
+				, loop=False
+				)
+				self.tutorial_video.state = 'stop'
+		
+				self.block_started = False
+				# Set present_tutorial_video to start once all touches released from layout to avoid accidental skipping of video
+				self.trigger_tutorial_screen()
+				return
+
+
+			if (self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language / 'Tutorial_Video').is_dir() \
+					and (self.stage_list[self.stage_index] == 'StimDur_Staircase_Probe') \
+					and (not self.stimdur_video_played):
+				self.protocol_floatlayout.clear_widgets()
+				self.current_stage = self.stage_list[self.stage_index]
+				self.stage_index -= 1
+				self.current_block = -1
+				self.stimdur_video_played = True
+				self.tutorial_video.state = 'stop'
+				self.tutorial_video.unload()
+				self.tutorial_video = None
+				self.tutorial_video = PreloadedVideo(
+				source_path = str(self.stimdur_video_path)
+				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
+				, fit_mode = 'contain'
+				, loop=False
+				)
+		
+				self.block_started = False
+				# Set present_tutorial_video to start once all touches released from layout to avoid accidental skipping of video
+				self.trigger_tutorial_screen()
+				return
+			
+			if (self.app.app_root / 'Protocol' / self.protocol_name / 'Language' / self.language / 'Tutorial_Video').is_dir() \
+					and (self.stage_list[self.stage_index] == 'TarProb_Fixed_Probe') \
+					and (not self.tar_prob_video_played):
+				self.protocol_floatlayout.clear_widgets()
+				self.current_stage = self.stage_list[self.stage_index]
+				self.stage_index -= 1
+				self.current_block = -1
+				self.tar_prob_video_played = True
+				self.tutorial_video.state = 'stop'
+				self.tutorial_video.unload()
+				self.tutorial_video = None
+				self.tutorial_video = PreloadedVideo(
+				source_path = str(self.tar_prob_video_path)
+				, pos_hint = {'center_x': 0.5, 'center_y': 0.5 + self.text_button_size[1]}
+				, fit_mode = 'contain'
+				, loop=False
+				)
+		
+				self.block_started = False
+
+				# Set trigger_tutorial_screen to start once all touches released from layout to avoid accidental skipping of video
+				self.trigger_tutorial_screen()
+				return
 			
 
 			# Set parameters for next block
@@ -2158,12 +2211,7 @@ class ProtocolScreen(ProtocolBase):
 				self.block_max_count = 1
 				self.block_trial_max = 2*(self.training_block_max_correct)
 				self.block_duration = 3*(self.block_trial_max)
-				self.section_instr_label.text = self.instruction_dict[str(self.current_stage)]['train']
 				self.instruction_button.text = self.training_block_button_str
-				self.center_instr_image.texture = self.image_dict[self.target_image].image.texture
-				
-				self.protocol_floatlayout.add_widget(self.center_instr_image)
-				self.protocol_floatlayout.add_widget(self.section_instr_label)
 				self.protocol_floatlayout.add_widget(self.instruction_button)
 				
 				self.protocol_floatlayout.add_object_event('Display', 'Image', 'Block', 'Instructions', self.target_image)
@@ -2193,7 +2241,6 @@ class ProtocolScreen(ProtocolBase):
 			# If current block is 1 (first testing block for stage)
 			elif self.current_block == 1:
 				self.protocol_floatlayout.clear_widgets()
-				self.section_instr_label.text = self.instruction_dict[str(self.current_stage)]['task']
 				
 				# Set default parameters for all blocks; only change what's needed
 				self.block_max_count = self.block_multiplier
@@ -2274,9 +2321,7 @@ class ProtocolScreen(ProtocolBase):
 
 				self.instruction_button.text = 'Press Here to Start'
 				self.center_instr_image.texture = self.image_dict[self.target_image].image.texture
-				
-				self.protocol_floatlayout.add_widget(self.center_instr_image)
-				self.protocol_floatlayout.add_widget(self.section_instr_label)
+			
 				self.protocol_floatlayout.add_widget(self.instruction_button)
 				
 				self.protocol_floatlayout.add_object_event('Display', 'Image', 'Block', 'Instructions', self.target_image)
@@ -2310,7 +2355,7 @@ class ProtocolScreen(ProtocolBase):
 					self.trial_list_max_run = self.trial_list_max_run_hilo
 					self.target_prob_hilo_index = self.current_block - 1
 					self.target_probability = self.target_prob_hilo[self.target_prob_hilo_index]
-					self.block_started = False
+					#self.block_started = False
 
 					self.trial_list = list()
 
@@ -2343,10 +2388,7 @@ class ProtocolScreen(ProtocolBase):
 			
 			self.protocol_floatlayout.add_variable_event('Parameter', 'Block Start Time', str(self.block_start))
 
-			# self.protocol_floatlayout.add_widget(self.hold_button)
-
-			# self.protocol_floatlayout.add_button_event('Displayed', 'Hold Button')
-
+			self.block_started = False
 			if self.hold_button.disabled:
 				self.hold_button.disabled = False
 

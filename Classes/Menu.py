@@ -395,8 +395,9 @@ class MenuBase(Screen):
 		
 			try:
 			
-			
-				self.manager.remove_widget(self.manager.get_screen(protocol_task_screen.name))
+				# Check if screen already exists (e.g. from previous run) and remove it before adding new one
+				if self.manager.has_screen(protocol_task_screen.name):
+					self.manager.remove_widget(self.manager.get_screen(protocol_task_screen.name))
 				self.manager.add_widget(protocol_task_screen)
 		
 		
@@ -429,7 +430,17 @@ class MenuBase(Screen):
 			self.app.start_next_battery_config()
 
 
-	
+	def update_parameters_external(self, new_params):
+		# Replace self.parameters_config with new_params and rebuild the menu
+		self.parameters_config = new_params
+		# Convert dictionary to configparser format if needed
+		if not isinstance(self.parameters_config, configparser.SectionProxy):
+			config = configparser.ConfigParser()
+			config['TaskParameters'] = self.parameters_config
+			self.parameters_config = config['TaskParameters']
+		# Check if method update_image_widget exists, if so, execute
+		if hasattr(self, 'update_image_widget') and callable(getattr(self, 'update_image_widget')):
+			self.update_image_widget()
 	
 	
 	def return_menu(self, *args):
